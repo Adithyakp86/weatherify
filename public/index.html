@@ -25,8 +25,9 @@
 
     <!-- Theme -->
     <meta name="theme-color" content="#0ea5e9" />
-    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script>/* Prevent theme flash: apply saved theme before paint */(function(){try{var k='weatherify-theme';var s=localStorage.getItem(k);if(s===null){s=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches? 'dark':'light';}if(s==='dark'){document.documentElement.classList.add('dark-mode');} }catch(e){} })();</script>
+    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -58,7 +59,7 @@
                         </button>
                         <button id="location-btn" type="button" class="location-btn" aria-label="Use my location for weather">
                             <span class="location-icon" aria-hidden="true">📍</span>
-                            <span class="location-label" style="color: #21388d;">Use My Location</span>
+                            <span class="location-label">Use My Location</span>
                         </button>
                     </div>
                     <div id="error-message" class="hidden text-red-500 text-sm mt-2">

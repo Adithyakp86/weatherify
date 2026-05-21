@@ -23,7 +23,8 @@ body {
     align-items: center;
     padding: 20px;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     color: #2c3e50;
     transition: color 0.4s ease;
 }
@@ -110,11 +111,11 @@ body.theme-haze {
 }
 
 .weather-app {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     backdrop-filter: blur(20px);
     border-radius: 28px;
     padding: 32px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    box-shadow: var(--card-shadow), 0 0 0 1px rgba(255, 255, 255, 0.1);
     max-height: calc(100vh - 32px);
     overflow-y: auto;
     animation: slideUp 0.6s ease-out;
@@ -516,10 +517,10 @@ h1 {
     align-items: center;
     gap: 8px;
     padding: 28px 26px;
-    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    background: var(--panel-bg);
     border-radius: 24px;
     animation: slideInLeft 0.6s ease-out 0.2s both;
-    border: 1px solid rgba(226, 232, 240, 0.5);
+    border: 1px solid var(--border);
     order: 1;
     position: relative;
     transition: background 0.4s ease, border-color 0.4s ease;
@@ -1625,6 +1626,39 @@ body.dark-mode .hourly-toggle.active {
     }
 }
 
+:root{
+    --page-bg: #f1f5f9;
+    --app-bg: #ffffff;
+    --panel-bg: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent-start: #667eea;
+    --accent-end: #764ba2;
+    --border: rgba(226,232,240,0.5);
+    --card-shadow: 0 20px 60px rgba(0,0,0,0.04);
+}
+
+body, .weather-app, .temperature-section, .detail-card, .forecast-graph-card {
+    transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease;
+}
+
+body {
+    background-color: var(--page-bg);
+    color: var(--text);
+}
+
+body.dark-mode{
+    --page-bg: #0b1220;
+    --app-bg: rgba(15,23,42,0.92);
+    --panel-bg: linear-gradient(135deg, rgba(10,14,25,0.6) 0%, rgba(20,26,40,0.6) 100%);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent-start: #f59e0b; /* warmer accent in dark */
+    --accent-end: #f97316;
+    --border: rgba(148,163,184,0.08);
+    --card-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
 /* Unit Toggle */
 .unit-toggle {
     display: flex;
@@ -1701,7 +1735,7 @@ body.dark-mode .unit-btn:not(.active):hover {
     padding: 8px 14px;
     border: 1.5px solid rgba(102, 126, 234, 0.3);
     border-radius: 50px;
-    background: rgba(102, 126, 234, 0.08);
+    background: rgba(102021261223,234, 0.08);
     color: #2d3748;
     font-family: inherit;
     font-size: 14px;
@@ -1717,10 +1751,13 @@ body.dark-mode .unit-btn:not(.active):hover {
     transform: translateY(-1px);
 }
 
-.share-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
+body.dark-mode .share-btn {
+    color: #f8fafc
+    border-color: rgba(148, 163, 184, 0.4);
+    background: rgba(10102126 12346, 234, 0.22);
+}
+
+body.dark-mode .share-btn
     width: min(220px, 100%);
     margin-top: 10px;
     padding: 12px;
@@ -1734,19 +1771,27 @@ body.dark-mode .unit-btn:not(.active):hover {
     gap: 8px;
 }
 
-.share-menu.hidden {
-    display: none;
+body.dark-mode .share-menu {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: rgba(148, 163, 184, 0.24);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
 }
 
-.share-menu-item {
-    width: 100%;
-    padding: 10px 14px;
-    border: none;
-    border-radius: 12px;
-    background: rgba(102, 126, 234, 0.08);
-    color: #2d3748;
-    font-family: inherit;
-    font-size: 14px;
+body.dark-mode .share-menu-item {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+}
+
+body.dark-mode .share-menu-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .share-status-text {
+    color: #cbd5e1;
+}
+
+.share-menu.hidden {
+    display: none;x;
     font-weight: 600;
     text-align: left;
     cursor: pointer;
@@ -1998,13 +2043,14 @@ body.dark-mode .theme-toggle:hover {
 
 body.dark-mode .location-btn {
     color: #e2e8f0;
-    border-color: rgba(102, 126, 234, 0.45);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.18) 0%, rgba(118, 75, 162, 0.18) 100%);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.18);
+    border-color: rgba(102, 126, 234, 0.65);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.22) 0%, rgba(118, 75, 162, 0.22) 100%);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.22);
 }
 
 body.dark-mode .location-btn:hover {
-    border-color: rgba(102, 126, 234, 0.85);
+    border-color: rgba(102, 126, 234, 0.95);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
 }
 
 body.dark-mode .location-label {

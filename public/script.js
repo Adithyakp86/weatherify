@@ -1605,10 +1605,16 @@ setInterval(renderSunPosition, 60000);
     const label     = toggleBtn ? toggleBtn.querySelector('.toggle-label') : null;
 
     function applyTheme(isDark) {
-        document.body.classList.toggle(DARK_CLASS, isDark);
+        // keep class on both html and body for early-paint sync
+        document.documentElement.classList.toggle(DARK_CLASS, isDark);
+        if (document.body) document.body.classList.toggle(DARK_CLASS, isDark);
         if (icon)      icon.textContent  = isDark ? '☀️' : '🌙';
         if (label)     label.textContent = isDark ? 'Light' : 'Dark';
-        if (toggleBtn) toggleBtn.setAttribute('aria-pressed', String(isDark));
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-pressed', String(isDark));
+            toggleBtn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+            toggleBtn.title = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+        }
     }
 
     function getInitialPreference() {

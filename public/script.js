@@ -186,7 +186,7 @@ const clearBtn = document.getElementById('clear-btn');
 const searchBtn = document.getElementById('search-btn');
 const locationBtn = document.getElementById('location-btn');
 const weatherContainer = document.getElementById('weather-container');
-const loading = document.getElementById('loading');
+const spinnerLoading = document.getElementById("spinner-loading");
 const errorMessage = document.getElementById('error-message');
 
 // Create suggestions dropdown
@@ -1564,11 +1564,11 @@ function getWindDirection(deg) {
     return `${directions[index]} ${arrows[index]}`;
 }
 function showLoading() {
-    loading.classList.remove('hidden');
+   spinnerLoading.classList.remove("hidden");
 }
 
 function hideLoading() {
-    loading.classList.add('hidden');
+    spinnerLoading.classList.add("hidden");
 }
 
 function showWeather() {

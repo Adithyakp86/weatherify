@@ -1667,3 +1667,16 @@ setInterval(renderSunPosition, 60000);
         }
     });
 })();
+
+
+function saveFavorites(favorites) {
+    localStorage.setItem("weatherify-favorites", JSON.stringify(favorites));
+}
+
+function loadFavorites() {
+    return JSON.parse(localStorage.getItem("weatherify-favorites")) || [];
+}
+
+if (favorites.length >= 5) {
+    alert("You can only save up to 5 favorite cities.");
+}

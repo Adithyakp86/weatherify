@@ -1,4 +1,4 @@
-// Weather and geocoding go through same-origin `/api/*` proxy (see server.js). No API key in the browser.
+// Weather and geocoding go through same-origin `/api/*` proxy.
 const API_BASE = '/api';
 const ICON_URL = 'https://openweathermap.org/img/wn';
 const DEGREE = '\u00B0';
@@ -8,45 +8,29 @@ let currentUnit = 'C';
 let rawData = { current: null, forecast: null, airQuality: null };
 
 // ============================================================
-// 🌍 MULTI-LANGUAGE SUPPORT (i18n) INTEGRATION - Issue #144
+// 🌍 MULTI-LANGUAGE SUPPORT (i18n) INTEGRATION
 // ============================================================
 let currentLang = localStorage.getItem('weatherify-lang') || 'en';
 
 function applyTranslations(lang) {
-    if (!translations || !translations[lang]) return;
-    const t = translations[lang];
+    if (!window.translations || !window.translations[lang]) return;
+    const t = window.translations[lang];
 
-    // Translate standard text content
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (t[key]) {
-            el.textContent = t[key];
-        }
+        if (t[key]) el.textContent = t[key];
     });
 
-    // Translate placeholders
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
-        if (t[key]) {
-            el.setAttribute('placeholder', t[key]);
-        }
+        if (t[key]) el.setAttribute('placeholder', t[key]);
     });
 
-    // Translate Dynamic UI elements that rely on current state
     const isDark = document.body.classList.contains('dark-mode');
     const toggleLabel = document.querySelector('.toggle-label');
-    if (toggleLabel) {
-        toggleLabel.textContent = isDark ? t['themeLight'] : t['themeDark'];
-    }
-
-    if (rawData.current) {
-        // Re-render feels like text with new language
-        const feelsLikeMain = document.getElementById('feels-like-main');
-        if (feelsLikeMain) feelsLikeMain.textContent = `${t['feelsLike']} ${toUnit(rawData.current.main.feels_like)}`;
-    }
+    if (toggleLabel) toggleLabel.textContent = isDark ? t['themeLight'] : t['themeDark'];
 }
 
-// Initialize Language Dropdown
 const languageToggle = document.getElementById('language-toggle');
 if (languageToggle) {
     languageToggle.value = currentLang;
@@ -54,18 +38,11 @@ if (languageToggle) {
         currentLang = e.target.value;
         localStorage.setItem('weatherify-lang', currentLang);
         applyTranslations(currentLang);
-        
-        // Refetch weather data to get API descriptions in the selected language
-        if (currentCityQuery) {
-            fetchWeatherData(currentCityQuery);
-        } else {
-            fetchWeatherData(DEFAULT_CITY);
-        }
+        if (currentCityQuery) fetchWeatherData(currentCityQuery);
+        else fetchWeatherData(DEFAULT_CITY);
     });
 }
-// Run translations on load
 document.addEventListener('DOMContentLoaded', () => applyTranslations(currentLang));
-
 
 // AQI UI elements
 const aqiCard = document.getElementById('aqi-card');
@@ -119,21 +96,34 @@ function getAqiHealthRecommendation(categoryLabel) {
 }
 
 function renderAqiUI(airPollution) {
+    console.log('[AQI] renderAqiUI called with:', airPollution);
+    
     if (!airPollution) {
+        console.warn('[AQI] No airPollution data provided');
         if (aqiCard) aqiCard.classList.add('hidden');
         return;
     }
 
-    if (!Array.isArray(airPollution.list) || airPollution.list.length === 0) {
+    if (!Array.isArray(airPollution.list)) {
+        console.warn('[AQI] airPollution.list is not an array:', typeof airPollution.list, airPollution.list);
         if (aqiCard) aqiCard.classList.add('hidden');
         return;
     }
 
+    if (airPollution.list.length === 0) {
+        console.warn('[AQI] airPollution.list is empty');
+        if (aqiCard) aqiCard.classList.add('hidden');
+        return;
+    }
+
+    console.log('[AQI] Rendering AQI data');
     if (aqiCard) aqiCard.classList.remove('hidden');
 
     const entry = airPollution.list[0];
+    console.log('[AQI] Entry:', entry);
     const aqi = entry?.main?.aqi;
     const pollutants = entry?.components || {};
+    console.log('[AQI] AQI value:', aqi, 'Pollutants:', pollutants);
 
     const { label, badgeClass } = getAqiCategory(aqi);
 
@@ -146,7 +136,16 @@ function renderAqiUI(airPollution) {
     }
 
     if (aqiPollutantsEl) {
+        // Show the most common pollutant components when available
+        //
         const parts = [];
+        const pm25 = pollutants.pm2_5;
+        const pm10 = pollutants.pm10;
+        const o3 = pollutants.o3;
+        const no2 = pollutants.no2;
+        const so2 = pollutants.so2;
+        const co = pollutants.co;
+
         const add = (key, label) => {
             const v = pollutants[key];
             if (v === undefined || v === null) return;
@@ -170,10 +169,12 @@ function renderAqiUI(airPollution) {
 
 async function fetchAirQualityByCoords(lat, lon) {
     const url = `${API_BASE}/air-quality?lat=${lat}&lon=${lon}`;
+
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`Air quality fetch failed: ${response.status}`);
     }
+
     return response.json();
 }
 
@@ -325,7 +326,8 @@ function renderHistory() {
     const hasHistory = favoriteCities.length > 0 || recentSearches.length > 0;
     const emptyState = !hasHistory ? `
         <div class="history-empty">
-            <p data-i18n="recent">No recent searches yet.</p>
+            <p>No recent searches yet.</p>
+            <small>Search a city and it will appear here for quick access.</small>
         </div>
     ` : '';
 
@@ -333,16 +335,16 @@ function renderHistory() {
     if (inner) {
         inner.innerHTML = `
             <div class="history-section">
-                <div class="history-section-title" data-i18n="favorites">Favorites</div>
+                <div class="history-section-title">Favorites</div>
                 <div id="favorite-list" class="history-list">${favoriteMarkup}</div>
             </div>
             <div class="history-section">
-                <div class="history-section-title" data-i18n="recent">Recent</div>
+                <div class="history-section-title">Recent</div>
                 <div id="recent-list" class="history-list">${recentMarkup}</div>
             </div>
             ${emptyState}
             <div class="history-actions">
-                <button id="clear-history-btn" type="button" class="clear-history-btn ${recentSearches.length === 0 ? 'hidden' : ''}" data-i18n="clearHistory">Clear history</button>
+                <button id="clear-history-btn" type="button" class="clear-history-btn ${recentSearches.length === 0 ? 'hidden' : ''}">Clear history</button>
             </div>
         `;
     }
@@ -363,7 +365,6 @@ function renderHistory() {
             clearRecentHistory();
         });
     }
-    applyTranslations(currentLang);
 }
 
 function updateFavoriteButton() {
@@ -437,6 +438,7 @@ function handleHistoryClick(event) {
 
 function openHistoryDropdown() {
     if (!historyDropdown) return;
+    // Only show if user isn't typing and there is something to show
     const hasAny = (favoriteCities && favoriteCities.length) || (recentSearches && recentSearches.length);
     if (!hasAny) return;
     historyDropdown.classList.remove('hidden');
@@ -470,6 +472,7 @@ function initHistory() {
         });
     }
 
+
     if (historyDropdown) {
         historyDropdown.addEventListener('click', handleHistoryClick);
     }
@@ -492,6 +495,8 @@ function setCurrentCity(data) {
     currentCityQuery = `${data.name},${data.sys.country}`;
     updateFavoriteButton();
     updateUrlParams(currentCityQuery, currentUnit);
+
+    // Record as recent search (prevent duplicates via addRecentSearch)
     addRecentSearch({ query: currentCityQuery, label: currentCityLabel });
 }
 
@@ -553,6 +558,7 @@ async function copyTextToClipboard(text) {
             await navigator.clipboard.writeText(text);
             return true;
         } catch {
+            // fallback below
         }
     }
 
@@ -697,6 +703,7 @@ clearBtn.addEventListener('click', (e) => {
     cityInput.focus();
 });
 
+// Hide suggestions, history, and share menu when clicking outside search controls
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.search-box')) {
         hideSuggestions();
@@ -722,7 +729,7 @@ if (trendControls) {
 
 async function fetchCitySuggestions(query) {
     try {
-        const url = `${API_BASE}/geo?q=${encodeURIComponent(query)}&limit=5&lang=${currentLang}`;
+        const url = `${API_BASE}/geo?q=${encodeURIComponent(query)}&limit=5`;
         const response = await fetch(url);
 
         if (!response.ok) return;
@@ -745,15 +752,13 @@ function displaySuggestions(cities) {
     cities.forEach((city) => {
         const suggestion = document.createElement('div');
         suggestion.className = 'suggestion-item';
-        // Check for local names based on current language
-        const localName = city.local_names && city.local_names[currentLang] ? city.local_names[currentLang] : city.name;
-        suggestion.textContent = `${localName}, ${city.state ? `${city.state}, ` : ''}${city.country}`;
+        suggestion.textContent = `${city.name}, ${city.state ? `${city.state}, ` : ''}${city.country}`;
 
         suggestion.addEventListener('click', () => {
-            cityInput.value = localName;
+            cityInput.value = city.name;
             clearBtn.classList.remove('hidden');
             hideSuggestions();
-            fetchWeatherData(localName);
+            fetchWeatherData(city.name);
         });
 
         suggestionsContainer.appendChild(suggestion);
@@ -766,6 +771,7 @@ function hideSuggestions() {
     suggestionsContainer.classList.add('hidden');
 }
 
+// Initialize with default city or shared link
 window.addEventListener('DOMContentLoaded', () => {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch((err) => {
@@ -797,9 +803,20 @@ function handleSearch() {
 }
 function getLocationErrorMessage(error) {
     if (!error) return 'Unable to get your location.';
-    if (error.code === 1) return 'Location permission denied. Please enable location access in your browser settings.';
-    if (error.code === 2) return 'Your location is unavailable right now.';
-    if (error.code === 3) return 'Timed out while trying to get your location. Please try again.';
+
+    // GeolocationPositionError.PERMISSION_DENIED = 1
+    if (error.code === 1) {
+        return 'Location permission denied. Please enable location access in your browser settings.';
+    }
+    // GeolocationPositionError.POSITION_UNAVAILABLE = 2
+    if (error.code === 2) {
+        return 'Your location is unavailable right now.';
+    }
+    // GeolocationPositionError.TIMEOUT = 3
+    if (error.code === 3) {
+        return 'Timed out while trying to get your location. Please try again.';
+    }
+
     return 'Unable to get your location.';
 }
 
@@ -813,6 +830,7 @@ async function requestWeatherFromMyLocation() {
         return;
     }
 
+    // Ask for a position with a reasonable timeout for mobile UX.
     showLoading();
     hideError();
 
@@ -824,6 +842,8 @@ async function requestWeatherFromMyLocation() {
         (error) => {
             hideLoading();
             showError(getLocationErrorMessage(error));
+
+            // If offline, try cached last-known data.
             if (!navigator.onLine) {
                 const cachedData = localStorage.getItem('weatherify-last-data');
                 if (cachedData) {
@@ -834,6 +854,7 @@ async function requestWeatherFromMyLocation() {
                     showError('You are offline. Showing last known weather data.');
                 }
             }
+
             if (locationBtn) locationBtn.disabled = false;
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
@@ -841,18 +862,24 @@ async function requestWeatherFromMyLocation() {
 }
 
 function detectUserLocation() {
+    // Backwards-compatible wrapper for any existing callers.
     requestWeatherFromMyLocation();
 }
 
 async function fetchWeatherByCoords(lat, lon) {
+    // Button disabling is handled by requestWeatherFromMyLocation.
     showLoading();
     hideError();
+    // hideWeather();
 
+    // Use the same units mode as the rest of the app (Kelvin -> handled by toUnit/toUnitNum)
+    // so temperature conversion stays consistent.
     try {
         const [currentResponse, forecastResponse] = await Promise.all([
-            fetch(`${API_BASE}/weather?lat=${lat}&lon=${lon}&units=standard&lang=${currentLang}`),
-            fetch(`${API_BASE}/forecast?lat=${lat}&lon=${lon}&units=standard&lang=${currentLang}`)
+            fetch(`${API_BASE}/weather?lat=${lat}&lon=${lon}&units=standard`),
+            fetch(`${API_BASE}/forecast?lat=${lat}&lon=${lon}&units=standard`)
         ]);
+
 
         if (!currentResponse.ok || !forecastResponse.ok) {
             throw new Error('Unable to fetch location weather');
@@ -868,15 +895,21 @@ async function fetchWeatherByCoords(lat, lon) {
         rawData.current = currentData;
         rawData.forecast = forecastData;
 
+        // Fetch AQI using resolved coordinates when available
         if (currentData?.coord?.lat !== undefined && currentData?.coord?.lon !== undefined) {
             try {
+                console.log('[AQI] Fetching AQI for coordinates:', currentData.coord.lat, currentData.coord.lon);
                 const airQuality = await fetchAirQualityByCoords(currentData.coord.lat, currentData.coord.lon);
                 rawData.airQuality = airQuality;
+                console.log('[AQI] Rendering AQI UI after fetch');
                 renderAqiUI(airQuality);
             } catch (error) {
+                console.error('[AQI] Error fetching/rendering AQI:', error);
                 rawData.airQuality = null;
                 if (aqiCard) aqiCard.classList.add('hidden');
             }
+        } else {
+            console.warn('[AQI] No coordinates available for AQI fetch');
         }
 
         localStorage.setItem('weatherify-last-data', JSON.stringify(rawData));
@@ -905,14 +938,17 @@ async function fetchWeatherByCoords(lat, lon) {
     }
 }
 async function fetchWeatherData(city) {
+    // reset AQI section while fetching new data
     if (aqiCard) aqiCard.classList.add('hidden');
+
     showLoading();
     hideError();
+    // hideWeather();
 
     try {
         const [currentResponse, forecastResponse] = await Promise.all([
-            fetch(`${API_BASE}/weather?q=${encodeURIComponent(city)}&units=standard&lang=${currentLang}`),
-            fetch(`${API_BASE}/forecast?q=${encodeURIComponent(city)}&units=standard&lang=${currentLang}`)
+            fetch(`${API_BASE}/weather?q=${encodeURIComponent(city)}&units=standard`),
+            fetch(`${API_BASE}/forecast?q=${encodeURIComponent(city)}&units=standard`)
         ]);
 
         if (!currentResponse.ok) {
@@ -972,13 +1008,10 @@ async function fetchWeatherData(city) {
 
 function updateUI(data) {
     cityName.textContent = `${data.name}, ${data.sys.country}`;
-    
-    // Set locale dynamically for date strings
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
-    const d = getShiftedDate(Math.floor(Date.now() / 1000), data.timezone);
-    dateElement.textContent = d.toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    dateElement.textContent = formatDateAtOffset(Math.floor(Date.now() / 1000), data.timezone);
 
     tempElement.textContent = toUnitNum(data.main.temp);
+    // document.querySelector('.unit').textContent = unitLabel();
     weatherDesc.textContent = data.weather[0].description;
 
     const iconCode = data.weather[0].icon;
@@ -986,10 +1019,7 @@ function updateUI(data) {
 
     feelsLike.textContent = toUnit(data.main.feels_like);
     const feelsLikeMain = document.getElementById('feels-like-main');
-    if (feelsLikeMain) {
-        const t = translations && translations[currentLang] ? translations[currentLang] : translations['en'];
-        feelsLikeMain.textContent = `${t['feelsLike']} ${toUnit(data.main.feels_like)}`;
-    }
+    if (feelsLikeMain) feelsLikeMain.textContent = `Feels like ${toUnit(data.main.feels_like)}`;
     humidity.textContent = `${data.main.humidity}%`;
     const windDir = getWindDirection(data.wind.deg);
     windSpeed.textContent = `${Math.round(data.wind.speed * 3.6)} km/h ${windDir}`;
@@ -1001,21 +1031,22 @@ function updateUI(data) {
 
     updateSunPosition(data);
     updateDynamicBackground(data);
-    initOrUpdateMap(data.coord.lat, data.coord.lon, data.name);
 }
 
 function updateForecastUI(forecastData) {
-    if (!forecastContainer) return;
+    if (!forecastContainer) {
+        console.warn('Forecast container not found');
+        return;
+    }
 
-    const hourlyData = forecastData.list.slice(0, 8); 
+    const hourlyData = forecastData.list.slice(0, 8); // Next 24 hours (8 * 3 hours)
     dailyTrendData = buildDailyTrendData(forecastData.list, forecastData.city?.timezone || 0);
 
     forecastContainer.innerHTML = '';
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
 
     hourlyData.forEach((hour) => {
         const date = new Date(hour.dt * 1000);
-        const timeString = date.toLocaleTimeString(locale, { hour: 'numeric', hour12: true });
+        const timeString = date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
         const iconCode = hour.weather[0].icon;
         const description = hour.weather[0].description;
 
@@ -1036,6 +1067,7 @@ function updateForecastUI(forecastData) {
     updateForecastSummary(hourlyData);
     renderTemperatureChart(hourlyData);
 
+    // Hourly humidity/precip chart
     const hoursAhead = 24;
     const hourlyPoints = buildHourlyPoints(forecastData.list, forecastData.city?.timezone || 0, hoursAhead);
     renderHumidityPrecipChart(hourlyPoints);
@@ -1058,21 +1090,17 @@ function updateForecastSummary(chartData) {
     const minTemp = Math.min(...temperatures);
     const maxTemp = Math.max(...temperatures);
     const delta = lastTemp - firstTemp;
-    
-    // Quick i18n for summary
-    let trend = 'Temperatures are expected to stay fairly steady';
-    if (currentLang === 'hi') trend = delta > 1.5 ? 'तापमान बढ़ने की उम्मीद है' : delta < -1.5 ? 'तापमान कम होने की उम्मीद है' : 'तापमान स्थिर रहने की उम्मीद है';
-    else if (currentLang === 'es') trend = delta > 1.5 ? 'Se espera que las temperaturas suban' : delta < -1.5 ? 'Se espera que las temperaturas bajen' : 'Temperaturas estables';
-    else if (currentLang === 'fr') trend = delta > 1.5 ? 'Les températures devraient augmenter' : delta < -1.5 ? 'Les températures devraient baisser' : 'Températures stables';
-    else trend = delta > 1.5 ? 'Temperatures are expected to rise' : delta < -1.5 ? 'Temperatures are expected to cool down' : 'Temperatures are expected to stay fairly steady';
+    const trend =
+        delta > 1.5 ? 'Temperatures are expected to rise' :
+        delta < -1.5 ? 'Temperatures are expected to cool down' :
+        'Temperatures are expected to stay fairly steady';
 
-    forecastSummary.textContent = `${trend} (${toUnit(minTemp)} - ${toUnit(maxTemp)}).`;
+    forecastSummary.textContent = `${trend} over the next 24 hours, ranging from ${toUnit(minTemp)} to ${toUnit(maxTemp)}.`;
     graphRange.textContent = `${toUnit(minTemp)} - ${toUnit(maxTemp)}`;
 }
 
 function buildDailyTrendData(forecastList, timezoneOffsetSeconds) {
     const groupedDays = new Map();
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
 
     forecastList.forEach((item) => {
         const localDate = getShiftedDate(item.dt, timezoneOffsetSeconds);
@@ -1081,11 +1109,19 @@ function buildDailyTrendData(forecastList, timezoneOffsetSeconds) {
         if (!groupedDays.has(dateKey)) {
             groupedDays.set(dateKey, {
                 dateKey,
-                dayLabel: localDate.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' }),
-                dateLabel: localDate.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+                dayLabel: localDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    timeZone: 'UTC'
+                }),
+                dateLabel: localDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    timeZone: 'UTC'
+                }),
                 temperatures: []
             });
         }
+
         groupedDays.get(dateKey).temperatures.push(item.main.temp);
     });
 
@@ -1094,7 +1130,12 @@ function buildDailyTrendData(forecastList, timezoneOffsetSeconds) {
         const low = Math.min(...day.temperatures);
         const avg = day.temperatures.reduce((total, temp) => total + temp, 0) / day.temperatures.length;
 
-        return { ...day, high, low, avg };
+        return {
+            ...day,
+            high,
+            low,
+            avg
+        };
     });
 }
 
@@ -1109,26 +1150,27 @@ function updateWeatherTrends(trendData) {
         return;
     }
 
+    // Convert canonical Kelvin values to the selected unit at render time
     const firstAverage = trendData[0].avg;
     const lastAverage = trendData[trendData.length - 1].avg;
     const firstAverageNum = toUnitNum(firstAverage);
     const lastAverageNum = toUnitNum(lastAverage);
     const averageDelta = lastAverageNum - firstAverageNum;
-    
-    let trendText = 'Weather remaining stable over the next few days.';
-    if(currentLang==='hi') trendText = averageDelta > 1.5 ? 'आने वाले दिनों में तापमान बढ़ेगा।' : averageDelta < -1.5 ? 'आने वाले दिनों में ठंडक की उम्मीद है।' : 'मौसम स्थिर रहेगा।';
-    else if(currentLang==='es') trendText = averageDelta > 1.5 ? 'Temperaturas subiendo en los próximos días.' : averageDelta < -1.5 ? 'Tendencia al enfriamiento.' : 'Clima estable.';
-    else if(currentLang==='fr') trendText = averageDelta > 1.5 ? 'Températures en hausse dans les jours à venir.' : averageDelta < -1.5 ? 'Tendance au refroidissement.' : 'Météo stable.';
-    else trendText = averageDelta > 1.5 ? 'Temperatures rising over the next few days.' : averageDelta < -1.5 ? 'Cooling trend expected over the next few days.' : 'Weather remaining stable over the next few days.';
+    const trendText =
+        averageDelta > 1.5 ? 'Temperatures rising over the next few days.' :
+        averageDelta < -1.5 ? 'Cooling trend expected over the next few days.' :
+        'Weather remaining stable over the next few days.';
 
-    trendsSummary.textContent = `${trendText}`;
+    const warmestDay = trendData.reduce((warmest, day) => day.high > warmest.high ? day : warmest, trendData[0]);
+    const coolestDay = trendData.reduce((coolest, day) => day.low < coolest.low ? day : coolest, trendData[0]);
+
+    trendsSummary.textContent = `${trendText} Warmest: ${warmestDay.dayLabel} at ${toUnitNum(warmestDay.high)}${unitLabel()}. Coolest: ${coolestDay.dayLabel} at ${toUnitNum(coolestDay.low)}${unitLabel()}.`;
     renderTrendStats(trendData);
     renderTrendChart(trendData);
 }
 
 function renderTrendStats(trendData) {
     if (!trendStats) return;
-    const t = translations && translations[currentLang] ? translations[currentLang] : translations['en'];
 
     trendStats.innerHTML = trendData.map((day) => `
         <div class="trend-stat-card">
@@ -1137,9 +1179,9 @@ function renderTrendStats(trendData) {
                 <small>${day.dateLabel}</small>
             </div>
             <div class="trend-stat-values">
-                <span><strong>${toUnitNum(day.high)}${unitLabel()}</strong> ${t['high'].toLowerCase()}</span>
-                <span><strong>${toUnitNum(day.low)}${unitLabel()}</strong> ${t['low'].toLowerCase()}</span>
-                <span><strong>${toUnitNum(day.avg)}${unitLabel()}</strong> ${t['avg'].toLowerCase()}</span>
+                <span><strong>${toUnitNum(day.high)}${unitLabel()}</strong> high</span>
+                <span><strong>${toUnitNum(day.low)}${unitLabel()}</strong> low</span>
+                <span><strong>${toUnitNum(day.avg)}${unitLabel()}</strong> avg</span>
             </div>
         </div>
     `).join('');
@@ -1155,17 +1197,16 @@ function updateTrendToggleState() {
 
 function renderTrendChart(trendData) {
     if (!trendChart) return;
+
     if (!trendData.length) {
         trendChart.innerHTML = '';
         return;
     }
 
-    const t = translations && translations[currentLang] ? translations[currentLang] : translations['en'];
-
     const metricLabels = {
-        high: t['high'],
-        low: t['low'],
-        avg: t['avgTemp']
+        high: 'Daily High Temperature',
+        low: 'Daily Low Temperature',
+        avg: 'Daily Average Temperature'
     };
     const metricColors = {
         high: '#f97316',
@@ -1178,6 +1219,7 @@ function renderTrendChart(trendData) {
     const padding = { top: 46, right: 42, bottom: 48, left: 54 };
     const innerWidth = width - padding.left - padding.right;
     const innerHeight = height - padding.top - padding.bottom;
+    // Convert canonical Kelvin temperatures to selected unit for plotting
     const values = trendData.map((day) => toUnitNum(day[metric]));
     const lowValues = trendData.map((day) => toUnitNum(day.low));
     const highValues = trendData.map((day) => toUnitNum(day.high));
@@ -1190,7 +1232,12 @@ function renderTrendChart(trendData) {
     const points = trendData.map((day, index) => {
         const x = padding.left + (index * innerWidth) / Math.max(trendData.length - 1, 1);
         const val = toUnitNum(day[metric]);
-        return { ...day, x, y: getY(val), value: val };
+        return {
+            ...day,
+            x,
+            y: getY(val),
+            value: val
+        };
     });
 
     const baselineY = height - padding.bottom;
@@ -1230,8 +1277,13 @@ function renderTrendChart(trendData) {
         ${labels}
     `;
 
-    if (trendChartLabel) trendChartLabel.textContent = metricLabels[metric];
-    if (trendChartRange) trendChartRange.textContent = `${Math.round(Math.min(...values))}${unitLabel()} - ${Math.round(Math.max(...values))}${unitLabel()}`;
+    if (trendChartLabel) {
+        trendChartLabel.textContent = metricLabels[metric];
+    }
+
+    if (trendChartRange) {
+        trendChartRange.textContent = `${Math.round(Math.min(...values))}${unitLabel()} - ${Math.round(Math.max(...values))}${unitLabel()}`;
+    }
 }
 
 function updateSunPosition(data) {
@@ -1251,26 +1303,60 @@ function updateDynamicBackground(data) {
     const weatherType = (data.weather?.[0]?.main || '').toLowerCase();
     const isNight = data.weather?.[0]?.icon?.includes('n');
     const themeClasses = [
-        'theme-clear-day', 'theme-clear-night', 'theme-clouds', 'theme-rain',
-        'theme-drizzle', 'theme-thunderstorm', 'theme-snow', 'theme-mist',
-        'theme-fog', 'theme-haze'
+        'theme-clear-day',
+        'theme-clear-night',
+        'theme-clouds',
+        'theme-rain',
+        'theme-drizzle',
+        'theme-thunderstorm',
+        'theme-snow',
+        'theme-mist',
+        'theme-fog',
+        'theme-haze'
     ];
 
     body.classList.remove(...themeClasses);
 
-    if (weatherType === 'clear') body.classList.add(isNight ? 'theme-clear-night' : 'theme-clear-day');
-    else if (weatherType === 'clouds') body.classList.add('theme-clouds');
-    else if (weatherType === 'rain') body.classList.add('theme-rain');
-    else if (weatherType === 'drizzle') body.classList.add('theme-drizzle');
-    else if (weatherType === 'thunderstorm') body.classList.add('theme-thunderstorm');
-    else if (weatherType === 'snow') body.classList.add('theme-snow');
-    else if (['mist', 'fog', 'haze', 'smoke'].includes(weatherType)) body.classList.add('theme-mist');
-    else body.classList.add(isNight ? 'theme-clear-night' : 'theme-clear-day');
+    if (weatherType === 'clear') {
+        body.classList.add(isNight ? 'theme-clear-night' : 'theme-clear-day');
+        return;
+    }
+
+    if (weatherType === 'clouds') {
+        body.classList.add('theme-clouds');
+        return;
+    }
+
+    if (weatherType === 'rain') {
+        body.classList.add('theme-rain');
+        return;
+    }
+
+    if (weatherType === 'drizzle') {
+        body.classList.add('theme-drizzle');
+        return;
+    }
+
+    if (weatherType === 'thunderstorm') {
+        body.classList.add('theme-thunderstorm');
+        return;
+    }
+
+    if (weatherType === 'snow') {
+        body.classList.add('theme-snow');
+        return;
+    }
+
+    if (weatherType === 'mist' || weatherType === 'fog' || weatherType === 'haze' || weatherType === 'smoke') {
+        body.classList.add('theme-mist');
+        return;
+    }
+
+    body.classList.add(isNight ? 'theme-clear-night' : 'theme-clear-day');
 }
 
 function renderSunPosition() {
     if (!sunTimeline || !sunMarker || !sunPhase || !sunProgress || !solarNoon) return;
-    const t = translations && translations[currentLang] ? translations[currentLang] : translations['en'];
 
     const nowSeconds = Math.floor(Date.now() / 1000);
     const { timezone, sunrise, sunset } = sunTimeline;
@@ -1281,25 +1367,31 @@ function renderSunPosition() {
     let progressText = '';
 
     if (nowSeconds <= sunrise) {
-        phaseText = currentLang==='hi'?'सूर्योदय से पहले':'Before sunrise';
-        progressText = currentLang==='hi'?`सूर्योदय में ${formatDuration(sunrise - nowSeconds)}`:`${formatDuration(sunrise - nowSeconds)} until sunrise`;
+        phaseText = 'Before sunrise';
+        progressText = `${formatDuration(sunrise - nowSeconds)} until sunrise`;
         progress = 0;
     } else if (nowSeconds >= sunset) {
-        phaseText = currentLang==='hi'?'सूर्यास्त के बाद':'After sunset';
-        progressText = currentLang==='hi'?`सूर्योदय में ${formatDuration(getNextSunriseSeconds(sunrise, nowSeconds) - nowSeconds)}`:`${formatDuration(getNextSunriseSeconds(sunrise, nowSeconds) - nowSeconds)} until sunrise`;
+        phaseText = 'After sunset';
+        progressText = `${formatDuration(getNextSunriseSeconds(sunrise, nowSeconds) - nowSeconds)} until sunrise`;
         progress = 100;
     } else {
         progress = ((nowSeconds - sunrise) / daylight) * 100;
-        phaseText = t['daylight'];
-        progressText = currentLang==='hi'?`दिन का ${Math.round(progress)}% हिस्सा पूरा हुआ`:`${Math.round(progress)}% of daylight completed`;
+
+        if (progress < 35) {
+            phaseText = 'Morning sun';
+        } else if (progress < 65) {
+            phaseText = 'Near solar noon';
+        } else {
+            phaseText = 'Afternoon sun';
+        }
+
+        progressText = `${Math.round(progress)}% of daylight completed`;
     }
 
     sunMarker.style.left = `${Math.min(Math.max(progress, 0), 100)}%`;
     sunPhase.textContent = phaseText;
     sunProgress.textContent = progressText;
-    
-    const midpointLabel = currentLang === 'hi' ? 'सौर मध्यबिंदु' : currentLang === 'es' ? 'Mediodía solar' : currentLang === 'fr' ? 'Midi solaire' : 'Solar midpoint';
-    solarNoon.textContent = `${midpointLabel} ${formatTimeAtOffset(midpoint, timezone)}`;
+    solarNoon.textContent = `Solar midpoint ${formatTimeAtOffset(midpoint, timezone)}`;
 }
 
 function getShiftedDate(unixSeconds, timezoneOffsetSeconds) {
@@ -1307,16 +1399,20 @@ function getShiftedDate(unixSeconds, timezoneOffsetSeconds) {
 }
 
 function formatDateAtOffset(unixSeconds, timezoneOffsetSeconds) {
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
-    return getShiftedDate(unixSeconds, timezoneOffsetSeconds).toLocaleDateString(locale, {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+    return getShiftedDate(unixSeconds, timezoneOffsetSeconds).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC'
     });
 }
 
 function formatTimeAtOffset(unixSeconds, timezoneOffsetSeconds) {
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
-    return getShiftedDate(unixSeconds, timezoneOffsetSeconds).toLocaleTimeString(locale, {
-        hour: '2-digit', minute: '2-digit', timeZone: 'UTC'
+    return getShiftedDate(unixSeconds, timezoneOffsetSeconds).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC'
     });
 }
 
@@ -1330,25 +1426,32 @@ function formatDuration(seconds) {
     const totalMinutes = Math.max(0, Math.round(seconds / 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    const hStr = currentLang==='hi'?'घं':'h';
-    const mStr = currentLang==='hi'?'मि':'m';
 
-    if (hours === 0) return `${minutes}${mStr}`;
-    if (minutes === 0) return `${hours}${hStr}`;
-    return `${hours}${hStr} ${minutes}${mStr}`;
+    if (hours === 0) {
+        return `${minutes}m`;
+    }
+
+    if (minutes === 0) {
+        return `${hours}h`;
+    }
+
+    return `${hours}h ${minutes}m`;
 }
 
 function renderTemperatureChart(hourlyData) {
     if (!temperatureChartCanvas) return;
+
     if (!hourlyData.length) {
-        if (window.temperatureChart) window.temperatureChart.destroy();
+        // Clear chart if no data
+        if (window.temperatureChart) {
+            window.temperatureChart.destroy();
+        }
         return;
     }
 
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
     const labels = hourlyData.map(item => {
         const date = new Date(item.dt * 1000);
-        return date.toLocaleTimeString(locale, { hour: 'numeric', hour12: true });
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
     });
 
     const temperatures = hourlyData.map(item => toUnitNum(item.main.temp));
@@ -1369,38 +1472,51 @@ function renderTemperatureChart(hourlyData) {
         type: 'line',
         data: data,
         options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: false,
-                    ticks: { callback: function(value) { return value + unitLabel(); } }
+                    ticks: {
+                        callback: function(value) {
+                            return value + unitLabel();
+                        }
+                    }
                 }
             }
         }
     };
 
-    if (window.temperatureChart) window.temperatureChart.destroy();
+    if (window.temperatureChart) {
+        window.temperatureChart.destroy();
+    }
     window.temperatureChart = new Chart(temperatureChartCanvas, config);
 }
 
 function buildHourlyPoints(forecastList, timezoneOffsetSeconds, hoursAhead) {
     if (!Array.isArray(forecastList) || forecastList.length === 0) return [];
+
     const nowSeconds = Math.floor(Date.now() / 1000);
     const endSeconds = nowSeconds + hoursAhead * 60 * 60;
-    const locale = currentLang === 'hi' ? 'hi-IN' : currentLang === 'es' ? 'es-ES' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
 
+    // OpenWeather dt is in UTC seconds.
     const points = forecastList
         .slice()
         .sort((a, b) => a.dt - b.dt)
         .filter((item) => item?.dt >= nowSeconds - 3600 && item?.dt <= endSeconds);
 
+    // Keep it compact (3-hour steps => ~8 points for 24h)
     return points.slice(0, 10).map((item) => {
         const localDate = getShiftedDate(item.dt, timezoneOffsetSeconds);
         return {
             raw: item,
             dt: item.dt,
-            timeLabel: localDate.toLocaleTimeString(locale, { hour: 'numeric' }),
+            timeLabel: localDate.toLocaleTimeString('en-US', { hour: 'numeric' }),
             humidity: item.main?.humidity ?? null,
             precipProb: item.pop ?? null,
             precipAmount: item.rain?.['3h'] ?? null
@@ -1412,20 +1528,26 @@ function renderHumidityPrecipChart(hourlyPoints) {
     if (!humidityPrecipChartCanvas || !humidityPrecipRange) return;
 
     if (!hourlyPoints || hourlyPoints.length === 0) {
-        if (window.humidityPrecipChart) window.humidityPrecipChart.destroy();
+        if (window.humidityPrecipChart) {
+            window.humidityPrecipChart.destroy();
+        }
         humidityPrecipRange.textContent = '--';
         return;
     }
 
-    const t = translations && translations[currentLang] ? translations[currentLang] : translations['en'];
     const metric = selectedHourlyMetric;
     const labels = hourlyPoints.map(p => p.timeLabel);
-    const values = hourlyPoints.map(p => metric === 'humidity' ? (p.humidity || 0) : (p.precipProb || 0) * 100);
+    const values = hourlyPoints.map(p => {
+        if (metric === 'humidity') {
+            return p.humidity || 0;
+        }
+        return (p.precipProb || 0) * 100;
+    });
 
     const data = {
         labels: labels,
         datasets: [{
-            label: metric === 'humidity' ? `${t['humidity']} (%)` : `${t['precip']} (%)`,
+            label: metric === 'humidity' ? 'Humidity (%)' : 'Precipitation Probability (%)',
             data: values,
             borderColor: metric === 'humidity' ? 'rgba(54, 162, 235, 1)' : 'rgba(255, 99, 132, 1)',
             backgroundColor: metric === 'humidity' ? 'rgba(54, 162, 235, 0.2)' : 'rgba(255, 99, 132, 0.2)',
@@ -1438,25 +1560,37 @@ function renderHumidityPrecipChart(hourlyPoints) {
         type: 'line',
         data: data,
         options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
-                    max: 100,
-                    ticks: { callback: function(value) { return value + '%'; } }
+                    max: metric === 'humidity' ? 100 : 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
                 }
             }
         }
     };
 
-    if (window.humidityPrecipChart) window.humidityPrecipChart.destroy();
+    if (window.humidityPrecipChart) {
+        window.humidityPrecipChart.destroy();
+    }
     window.humidityPrecipChart = new Chart(humidityPrecipChartCanvas, config);
 
+    // Update range label
     const minV = Math.min(...values);
     const maxV = Math.max(...values);
-    const suffix = metric === 'humidity' ? `%` : `%`;
-    humidityPrecipRange.textContent = `${minV}% - ${maxV}%`;
+    const suffix = metric === 'humidity' ? 'Humidity %' : 'Precip Probability %';
+    humidityPrecipRange.textContent = `${minV}% - ${maxV}% (${suffix})`;
 }
 
 function getWindDirection(deg) {
@@ -1466,18 +1600,39 @@ function getWindDirection(deg) {
     const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
     return `${directions[index]} ${arrows[index]}`;
 }
-function showLoading() { spinnerLoading.classList.remove("hidden"); }
-function hideLoading() { spinnerLoading.classList.add("hidden"); }
-function showWeather() { weatherContainer.classList.remove('hidden'); }
-function hideWeather() { weatherContainer.classList.add('hidden'); }
+function showLoading() {
+   spinnerLoading.classList.remove("hidden");
+}
+
+function hideLoading() {
+    spinnerLoading.classList.add("hidden");
+}
+
+function showWeather() {
+    weatherContainer.classList.remove('hidden');
+}
+
+function hideWeather() {
+    weatherContainer.classList.add('hidden');
+}
+
 function showError(message) {
-    if (message) errorMessage.querySelector('p').textContent = message;
+    if (message) {
+        errorMessage.querySelector('p').textContent = message;
+    }
     errorMessage.classList.remove('hidden');
 }
-function hideError() { errorMessage.classList.add('hidden'); }
+
+function hideError() {
+    errorMessage.classList.add('hidden');
+}
 
 setInterval(renderSunPosition, 60000);
 
+
+// ============================================================
+// ✅ ADDED: Dark Mode Toggle — Issue #14
+// ============================================================
 (function initDarkMode() {
     const STORAGE_KEY = 'weatherify-theme';
     const DARK_CLASS  = 'dark-mode';
@@ -1487,15 +1642,15 @@ setInterval(renderSunPosition, 60000);
     const label     = toggleBtn ? toggleBtn.querySelector('.toggle-label') : null;
 
     function applyTheme(isDark) {
+        // keep class on both html and body for early-paint sync
         document.documentElement.classList.toggle(DARK_CLASS, isDark);
         if (document.body) document.body.classList.toggle(DARK_CLASS, isDark);
-        if (icon) icon.textContent  = isDark ? '☀️' : '🌙';
-        
-        const t = translations && translations[currentLang] ? translations[currentLang] : translations['en'];
-        if (label) label.textContent = isDark ? t['themeLight'] : t['themeDark'];
-        
+        if (icon)      icon.textContent  = isDark ? '☀️' : '🌙';
+        if (label)     label.textContent = isDark ? 'Light' : 'Dark';
         if (toggleBtn) {
             toggleBtn.setAttribute('aria-pressed', String(isDark));
+            toggleBtn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+            toggleBtn.title = isDark ? 'Switch to light theme' : 'Switch to dark theme';
         }
     }
 
@@ -1505,6 +1660,7 @@ setInterval(renderSunPosition, 60000);
         return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
 
+    // Apply before first paint to prevent flash
     applyTheme(getInitialPreference());
 
     if (toggleBtn) {
@@ -1515,6 +1671,33 @@ setInterval(renderSunPosition, 60000);
         });
     }
 
+    function setWeatherBackground(condition) {
+    const body = document.body;
+
+    switch (condition.toLowerCase()) {
+        case "clear":
+            body.style.background = "linear-gradient(to right, #ff7e5f, #feb47b)";
+            break;
+        case "clouds":
+            body.style.background = "linear-gradient(to right, #bdc3c7, #2c3e50)";
+            break;
+        case "rain":
+            body.style.background = "linear-gradient(to right, #4b79a1, #283e51)";
+            break;
+        case "snow":
+            body.style.background = "linear-gradient(to right, #e6dada, #274046)";
+            break;
+        case "thunderstorm":
+            body.style.background = "linear-gradient(to right, #141e30, #243b55)";
+            break;
+        default:
+            body.style.background = "linear-gradient(to right, #89f7fe, #66a6ff)";
+    }
+}
+
+    setWeatherBackground(data.weather[0].main);
+
+    // Follow OS preference changes only if user hasn't manually chosen
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (localStorage.getItem(STORAGE_KEY) === null) {
             applyTheme(e.matches);
@@ -1522,54 +1705,15 @@ setInterval(renderSunPosition, 60000);
     });
 })();
 
-function saveFavorites(favorites) { localStorage.setItem("weatherify-favorites", JSON.stringify(favorites)); }
-function loadFavorites() { return JSON.parse(localStorage.getItem("weatherify-favorites")) || []; }
 
-let mapInstance = null;
-let mapMarker = null;
-let activeWeatherLayer = null;
-
-function initOrUpdateMap(lat, lon, cityName) {
-    const mapElement = document.getElementById('weather-map');
-    if (!mapElement) return;
-
-    if (!mapInstance) {
-        mapInstance = L.map('weather-map').setView([lat, lon], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(mapInstance);
-        mapMarker = L.marker([lat, lon]).addTo(mapInstance);
-        setupMapLayerControls();
-    } else {
-        mapInstance.setView([lat, lon], 10);
-        mapMarker.setLatLng([lat, lon]);
-    }
-    mapMarker.bindPopup(`<b>${cityName}</b>`).openPopup();
+function saveFavorites(favorites) {
+    localStorage.setItem("weatherify-favorites", JSON.stringify(favorites));
 }
 
-function setupMapLayerControls() {
-    const mapControls = document.querySelectorAll('.map-layer-controls .trend-toggle');
-    if (!mapControls.length) return;
+function loadFavorites() {
+    return JSON.parse(localStorage.getItem("weatherify-favorites")) || [];
+}
 
-    mapControls.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            mapControls.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            
-            const layerType = e.target.dataset.layer;
-            
-            if (activeWeatherLayer) {
-                mapInstance.removeLayer(activeWeatherLayer);
-                activeWeatherLayer = null;
-            }
-
-            let layerUrl = '';
-            if (layerType === 'precipitation') layerUrl = 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=MOCK_KEY';
-            else if (layerType === 'clouds') layerUrl = 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=MOCK_KEY';
-
-            if (layerUrl && layerType !== 'base') {
-                /* activeWeatherLayer = L.tileLayer(layerUrl, { opacity: 0.6 }).addTo(mapInstance); */
-            }
-        });
-    });
+if (favorites.length >= 5) {
+    alert("You can only save up to 5 favorite cities.");
 }

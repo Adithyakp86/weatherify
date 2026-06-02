@@ -1152,3 +1152,57 @@ body.dark-mode .no-data-message { color: #94a3b8; }
 .skeleton-text, .skeleton-card { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 body.dark-mode .skeleton-text, body.dark-mode .skeleton-card { background: linear-gradient(90deg, #1e293b 25%, #2d3748 50%, #1e293b 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+
+
+/* ===== WEATHER MAP SECTION ===== */
+.weather-map-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: slideUp 0.6s ease-out 0.3s both;
+    margin-top: 10px;
+}
+
+.map-card {
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+    border: 2px solid rgba(102, 126, 234, 0.15);
+    border-radius: 20px;
+    padding: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 1; /* Keep map controls below header dropdowns */
+}
+
+.map-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
+}
+
+/* Dark Mode Overrides for Map */
+body.dark-mode .map-card {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border-color: rgba(102, 126, 234, 0.2);
+}
+
+body.dark-mode .map-card:hover {
+    border-color: #667eea;
+}
+
+/* Leaflet Dark Mode UI Adjustments */
+body.dark-mode .leaflet-control-zoom a {
+    background-color: #1e293b;
+    color: #e2e8f0;
+    border-color: #334155;
+}
+
+body.dark-mode .leaflet-control-zoom a:hover {
+    background-color: #334155;
+}
+
+body.dark-mode .leaflet-popup-content-wrapper,
+body.dark-mode .leaflet-popup-tip {
+    background-color: #1e293b;
+    color: #f1f5f9;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+}

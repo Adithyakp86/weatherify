@@ -6,6 +6,9 @@ const DEFAULT_CITY = 'New Delhi';
 
 let currentUnit = 'C';
 let rawData = { current: null, forecast: null, airQuality: null };
+let mapInstance = null;
+let mapMarker = null;
+let activeWeatherLayer = null;
 
 // AQI UI elements
 const aqiCard = document.getElementById('aqi-card');
@@ -994,6 +997,7 @@ function updateUI(data) {
 
     updateSunPosition(data);
     updateDynamicBackground(data);
+    initOrUpdateMap(data.coord.lat, data.coord.lon, data.name);
 }
 
 function updateForecastUI(forecastData) {
@@ -1679,4 +1683,74 @@ function loadFavorites() {
 
 if (favorites.length >= 5) {
     alert("You can only save up to 5 favorite cities.");
+}
+
+// ============================================================
+// 🗺️ INTERACTIVE WEATHER MAP INTEGRATION (Leaflet)
+// ============================================================
+
+function initOrUpdateMap(lat, lon, cityName) {
+    const mapElement = document.getElementById('weather-map');
+    if (!mapElement) return;
+
+    if (!mapInstance) {
+        // Initialize Map
+        mapInstance = L.map('weather-map').setView([lat, lon], 10);
+        
+        // Base OpenStreetMap Layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(mapInstance);
+
+        // Marker for the City
+        mapMarker = L.marker([lat, lon]).addTo(mapInstance);
+        
+        setupMapLayerControls();
+    } else {
+        // Update existing map
+        mapInstance.setView([lat, lon], 10);
+        mapMarker.setLatLng([lat, lon]);
+    }
+    
+    mapMarker.bindPopup(`<b>${cityName}</b>`).openPopup();
+}
+
+function setupMapLayerControls() {
+    const mapControls = document.querySelectorAll('.map-layer-controls .trend-toggle');
+    if (!mapControls.length) return;
+
+    mapControls.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // Update UI
+            mapControls.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            const layerType = e.target.dataset.layer;
+            
+            // Remove existing overlay if present
+            if (activeWeatherLayer) {
+                mapInstance.removeLayer(activeWeatherLayer);
+                activeWeatherLayer = null;
+            }
+
+            // Here we mock the API URLs. In the future, replace "MOCK_KEY" with your real OpenWeatherMap key.
+            let layerUrl = '';
+            if (layerType === 'precipitation') {
+                layerUrl = 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=MOCK_KEY';
+                console.log('[Map] Precipitation Layer active (Mocked URL pending real API key)');
+            } else if (layerType === 'clouds') {
+                layerUrl = 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=MOCK_KEY';
+                console.log('[Map] Clouds Layer active (Mocked URL pending real API key)');
+            }
+
+            if (layerUrl && layerType !== 'base') {
+                /* UNCOMMENT THIS WHEN YOU HAVE THE REAL API KEY IN THE URL
+                activeWeatherLayer = L.tileLayer(layerUrl, {
+                    opacity: 0.6,
+                    attribution: 'Weather data &copy; OpenWeatherMap'
+                }).addTo(mapInstance);
+                */
+            }
+        });
+    });
 }

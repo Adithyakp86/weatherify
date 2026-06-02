@@ -32,6 +32,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
 
@@ -332,6 +335,25 @@
                         <div class="trend-stats" id="trend-stats">
                             <!-- Daily trend stats will be inserted here -->
                         </div>
+                    </div>
+                </section>
+
+                <!-- Interactive Weather Map Section -->
+                <section class="weather-map-section" aria-labelledby="weather-map-title">
+                    <div class="trends-header">
+                        <div>
+                            <h3 class="forecast-title" id="weather-map-title">Interactive Map</h3>
+                            <p class="forecast-subtitle" id="map-summary">Live spatial weather patterns.</p>
+                        </div>
+                        <div class="trend-controls map-layer-controls" aria-label="Choose map layer">
+                            <button class="trend-toggle active" type="button" data-layer="base">Base</button>
+                            <button class="trend-toggle" type="button" data-layer="precipitation">Rain</button>
+                            <button class="trend-toggle" type="button" data-layer="clouds">Clouds</button>
+                        </div>
+                    </div>
+
+                    <div class="map-card glass-panel">
+                        <div id="weather-map" style="height: 350px; width: 100%; border-radius: 16px; z-index: 1;"></div>
                     </div>
                 </section>
 

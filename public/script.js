@@ -248,6 +248,7 @@ const weatherIcon = document.getElementById('weather-icon');
 const feelsLike = document.getElementById('feels-like');
 const humidity = document.getElementById('humidity');
 const windSpeed = document.getElementById('wind-speed');
+const windCompassIcon = document.getElementById('wind-compass-icon');
 const pressure = document.getElementById('pressure');
 const visibility = document.getElementById('visibility');
 const sunrise = document.getElementById('sunrise');
@@ -1026,6 +1027,10 @@ function updateUI(data) {
     humidity.textContent = `${data.main.humidity}%`;
     const windDir = getWindDirection(data.wind.deg);
     windSpeed.textContent = `${Math.round(data.wind.speed * 3.6)} km/h ${windDir}`;
+    // Dynamic wind direction compass needle rotation logic
+if (windCompassIcon && data && data.wind && data.wind.deg !== undefined) {
+    windCompassIcon.style.transform = `rotate(${data.wind.deg}deg)`;
+}
     pressure.textContent = `${data.main.pressure} hPa`;
     visibility.textContent = `${(data.visibility / 1000).toFixed(1)} km`;
 

@@ -205,6 +205,18 @@
                         <div class="detail-info">
                             <span class="detail-label" data-i18n="windSpeed">Wind Speed</span>
                             <span class="detail-value" id="wind-speed">-- km/h</span>
+                            <span class="detail-label">Wind Speed</span>
+                            <span class="detail-value" id="wind-speed">-- km/h </span> <!-- Wind Direction Compass Container -->
+<div class="compass-container" style="display: inline-block; margin-left: 10px; vertical-align: middle;">
+    <svg id="wind-compass-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" style="transition: transform 0.5s ease-in-out; fill: currentColor;">
+        <!-- Compass Outer Circle -->
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+        <!-- North Marker -->
+        <text x="12" y="6" font-size="5" font-weight="bold" text-anchor="middle">N</text>
+        <!-- Needle Pointer -->
+        <polygon points="12,7 9,15 12,13 15,15" />
+    </svg>
+</div>
                         </div>
                     </div>
 
